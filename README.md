@@ -71,7 +71,16 @@ docker save vneurok-max:local | gzip > vneurok-max-docker.tar.gz
 gunzip -c vneurok-max-docker.tar.gz | docker load
 ```
 
-В GitHub проверка собирает образ и сохраняет файл `vneurok-max-docker.tar.gz` в разделе **Actions → Проверка проекта → Artifacts → vneurok-max-docker**. Это именно образ, а не только Dockerfile. Доступность образа подтверждается успешным завершением проверки; ссылка на конкретную сборку будет добавлена после её выполнения.
+Готовый образ **Linux amd64, версия v0.1.0**: [скачать из Releases](https://github.com/raastaa/vneurok-max/releases/tag/v0.1.0). Рядом находятся `SHA256SUMS` и сведения об образе. Это образ коммита `04cae8b6bc5e986dc44e4063e61c89cfbc9913ca`, а не автоматически самая новая версия ветки.
+
+Проверка архива перед загрузкой:
+
+```sh
+sha256sum -c SHA256SUMS
+# На macOS: shasum -a 256 -c SHA256SUMS
+```
+
+[Проверка и сборка этого образа](https://github.com/raastaa/vneurok-max/actions/runs/42335063621) завершились успешно. Новые сборки также сохраняются в **Actions → Проверка проекта → Artifacts → vneurok-max-docker** на 30 дней; для подачи используйте постоянную ссылку на Releases.
 
 ## Подключение MAX
 
@@ -80,6 +89,14 @@ gunzip -c vneurok-max-docker.tar.gz | docker load
 3. В MAX настроены события `bot_started` и `message_created` на адрес `https://ваш-домен/api/max/webhook`.
 4. Секрет webhook совпадает с локальным `MAX_WEBHOOK_SECRET`.
 5. Проверены `/start`, учебный маршрут и получение ответов с настоящего аккаунта MAX.
+
+До подключения можно выполнить безопасную местную проверку:
+
+```sh
+python3 -m vneurok.readiness --env-file .env
+```
+
+Она не создаёт файлы, не выводит значения секретов, не обращается к MAX и не меняет настройки. Успех означает только корректность местной конфигурации, не работающего бота. Подробный порядок запуска и приёмки: [docs/LAUNCH_CHECKLIST.md](docs/LAUNCH_CHECKLIST.md).
 
 Эти действия не выполняются автоматически при скачивании проекта. Школьные данные нельзя загружать в учебный пример. Перед настоящим использованием школа определяет участников, права и правила хранения данных.
 

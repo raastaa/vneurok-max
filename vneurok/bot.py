@@ -1,5 +1,6 @@
 """Команды школьного бота. Ответ возвращается вызывающему коду."""
 from pathlib import Path
+from contextlib import contextmanager
 import hashlib
 import sqlite3
 from datetime import datetime, timedelta, timezone
@@ -32,8 +33,14 @@ class BotRouter:
         with self._db() as db:
             db.executescript('CREATE TABLE IF NOT EXISTS sessions(uid TEXT PRIMARY KEY, mode TEXT, role TEXT); CREATE TABLE IF NOT EXISTS inbox(uid TEXT,event TEXT,reply TEXT,PRIMARY KEY(uid,event));')
 
+    @contextmanager
     def _db(self):
-        return sqlite3.connect(self.path, timeout=30)
+        db = sqlite3.connect(self.path, timeout=30)
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     def handle(self, max_user_id, text, event_key):
         if type(max_user_id) is not int or max_user_id <= 0:
