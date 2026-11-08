@@ -6,20 +6,108 @@ on:
 permissions:
   contents: read
 jobs:
-  check:
+  tests:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.12', '3.14']
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Проверить сценарии
-        run: python -m unittest discover -s tests -v
+          python-version: ${{ matrix.python }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Проверить Python и освобождение ресурсов
+        run: python -W error::ResourceWarning scripts/run_tests.py
+      - name: Проверить синтаксис и web-сценарии
+        run: |
+          python -m compileall -q vneurok tests scripts
+          node --check web/app.js
+          node tests/test_web_guided.js
+  container:
+    needs: tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
       - name: Собрать образ
         run: docker build -t vneurok-max:${{ github.sha }} .
-      - name: Проверить запуск внутри образа
+      - name: Проверить школьный HTTP-запуск и перезапуск без внешней сети
+        shell: bash
         run: |
-          docker run --rm --network none --entrypoint python vneurok-max:${{ github.sha }} -c "import tempfile; from vneurok.bot import BotRouter; from vneurok.server import Application; d=tempfile.mkdtemp(); b=BotRouter(d); assert 'пример' in b.handle(123, '/demo', 'check'); print(b.handle(123, '/list', 'list'))"
+          set -euo pipefail
+          image="vneurok-max:${{ github.sha }}"
+          container="vneurok-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          volume="${container}-data"
+          cleanup() {
+            docker logs "$container" 2>/dev/null || true
+            docker rm -f "$container" >/dev/null 2>&1 || true
+            docker volume rm "$volume" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+          docker volume create "$volume" >/dev/null
+          # Only invented identities. No MAX request can leave --network none.
+          docker run --rm --network none --read-only --tmpfs /tmp \
+            --mount "type=volume,src=$volume,dst=/data" "$image" \
+            python -m vneurok.school_setup --db /data/vneurok.db \
+            --school-id synthetic-ci --school-name 'Synthetic CI school' \
+            --admin-name 'Synthetic adult operator' --admin-max-id 900000201 \
+            --apply --confirm-access --confirm-adult
+          docker run -d --name "$container" --network none --read-only --tmpfs /tmp \
+            --security-opt no-new-privileges:true --cap-drop ALL \
+            --mount "type=volume,src=$volume,dst=/data" \
+            -e APP_ORIGIN=https://synthetic-ci.invalid \
+            -e MAX_BOT_TOKEN=synthetic-offline-token \
+            -e MAX_WEBHOOK_SECRET=synthetic-offline-webhook \
+            "$image" python -m vneurok.server --max-mode --host 0.0.0.0 --db /data/vneurok.db
+          wait_healthy() {
+            for attempt in $(seq 1 60); do
+              if docker exec "$container" python -m vneurok.healthcheck; then return 0; fi
+              if [ "$(docker inspect -f '{{.State.Running}}' "$container")" != true ]; then return 1; fi
+              sleep 1
+            done
+            return 1
+          }
+          probe() {
+            docker exec -i "$container" python - <<'PY'
+          import http.client, json, sqlite3
+          from contextlib import closing
+          from vneurok.healthcheck import check_health
+          assert check_health()['demo'] is False
+          def request(path, method='GET', raw=None):
+              conn=http.client.HTTPConnection('127.0.0.1',8765,timeout=3)
+              try:
+                  headers={'Host':'synthetic-ci.invalid'}
+                  if raw is not None: headers['Content-Type']='application/json'
+                  conn.request(method,path,json.dumps(raw) if raw is not None else None,headers)
+                  response=conn.getresponse(); body=response.read()
+                  return response.status,json.loads(body)
+              finally: conn.close()
+          assert request('/api/config')==(200,{'demo':False})
+          assert request('/api/bootstrap')[0]==401
+          assert request('/api/demo/login','POST',{'user_id':'admin'})[0]==404
+          with closing(sqlite3.connect('/data/vneurok.db')) as db:
+              assert db.execute('SELECT max_id,school_id,is_admin,active FROM users').fetchall()==[('900000201','synthetic-ci',1,1)]
+              assert db.execute('SELECT count(*) FROM school_setup_audit').fetchone()[0]==1
+              assert db.execute('SELECT count(*) FROM bot_outbox').fetchone()[0]==0
+          print('PASS: HTTP school mode, authentication gates and persistent synthetic administrator.')
+          PY
+          }
+          wait_healthy
+          probe
+          docker restart "$container" >/dev/null
+          wait_healthy
+          probe
+          # Check the image's declared HEALTHCHECK, not only the explicit probe.
+          for attempt in $(seq 1 60); do
+            health="$(docker inspect -f '{{.State.Health.Status}}' "$container")"
+            [ "$health" = healthy ] && break
+            [ "$health" = unhealthy ] && exit 1
+            sleep 1
+          done
+          test "$health" = healthy
       - name: Сохранить Docker-образ
         run: docker save vneurok-max:${{ github.sha }} | gzip > vneurok-max-docker.tar.gz
       - uses: actions/upload-artifact@v4

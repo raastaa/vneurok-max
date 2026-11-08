@@ -18,6 +18,7 @@ class BotTests(unittest.TestCase):
     def test_full_route(self):
         iid='demo-game-workshop'
         self.say('/demo')
+        self.assertIn('student-helper',self.say('/invite '+iid+' student-helper'))
         self.assertIn('На согласовании',self.say('/submit '+iid))
         self.say('/role helper')
         self.assertIn('в работе',self.say('/claim '+iid+' demo-poster'))
@@ -31,7 +32,10 @@ class BotTests(unittest.TestCase):
         self.say('/demo_end '+iid)
         self.say('/role curator')
         self.assertIn('Запись открыта',self.say('/attend '+iid+' student-visitor да'))
-        self.assertIn('Завершено',self.say('/result '+iid+' Все вместе создали учебную игру.'))
+        self.say('/role author')
+        self.assertIn('Итог ждёт подтверждения',self.say('/result '+iid+' Все вместе создали учебную игру.'))
+        self.say('/role curator')
+        self.assertIn('Завершено',self.say('/confirm '+iid))
     def test_replay_isolation(self):
         self.say('/demo')
         first=self.bot.handle(1,'/task demo-game-workshop Подготовить комнату','same')
@@ -89,5 +93,34 @@ class BotTests(unittest.TestCase):
         self.assertEqual(reply.count('/view '),11) # 10 карточек и подсказка.
         self.assertIn('Ещё 3 инициатив',reply)
         self.assertLessEqual(len(reply),3900)
+
+    def test_school_private_card_hidden_from_uninvited_account(self):
+        with self.school.connection(True) as db:
+            db.execute("UPDATE users SET max_id='1' WHERE id='student-author'")
+            db.execute("UPDATE users SET max_id='2' WHERE id='student-visitor'")
+            db.execute("UPDATE initiatives SET kind='team' WHERE id='demo-game-workshop'")
+        self.say('/school');self.say('/submit demo-game-workshop')
+        self.say('/school',2)
+        self.assertIn('Пока ничего нет',self.say('/list',2))
+        self.assertNotIn('Создаём',self.say('/view demo-game-workshop',2))
+
+    def test_school_unfollow_does_not_need_private_detail(self):
+        iid='demo-game-workshop'
+        with self.school.connection(True) as db:db.execute("UPDATE users SET max_id='2' WHERE id='student-visitor'")
+        row=self.school.detail(iid,'student-author')
+        for who,action in [('student-author','submit'),('curator','approve')]:
+            row=self.school.action(who,iid,dict(action=action,version=row['version']))
+        self.say('/school',2);self.say('/follow '+iid,2)
+        row=self.school.detail(iid,'student-author')
+        self.school.edit('student-author',iid,dict(version=row['version'],title='Закрытая редакция'))
+        self.assertNotIn('Закрытая редакция',self.say('/view '+iid,2))
+        self.assertIn('Подписка отключена',self.say('/unfollow '+iid,2))
+
+    def test_curator_next_step_does_not_offer_student_commands(self):
+        row=self.school.detail('demo-game-workshop','student-author')
+        row['status']='approved'
+        self.assertNotIn('/follow',self.bot._card(row,self.school.user('curator')))
+        row['status']='registration'
+        self.assertNotIn('/join',self.bot._card(row,self.school.user('curator')))
 
 if __name__ == '__main__': unittest.main()

@@ -1,0 +1,1145 @@
+{
+  "started_at_utc": "2026-11-08T03:50:47+00:00",
+  "finished_at_utc": "2026-11-08T03:51:05+00:00",
+  "runtime": {
+    "python": "3.14.2",
+    "platform": "Darwin",
+    "machine": "arm64"
+  },
+  "scope": "Synthetic temporary local databases and mocked MAX transport; no production or real school data.",
+  "tests_run": 216,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "unclosed_resource_finalizers": 0,
+  "cases": [
+    {
+      "case": "test_bot.BotTests.test_bad_create_preserves_mode",
+      "status": "PASS",
+      "seconds": 0.062
+    },
+    {
+      "case": "test_bot.BotTests.test_curator_next_step_does_not_offer_student_commands",
+      "status": "PASS",
+      "seconds": 0.0238
+    },
+    {
+      "case": "test_bot.BotTests.test_full_route",
+      "status": "PASS",
+      "seconds": 0.2973
+    },
+    {
+      "case": "test_bot.BotTests.test_list_limit",
+      "status": "PASS",
+      "seconds": 0.0758
+    },
+    {
+      "case": "test_bot.BotTests.test_long_card_and_team_next",
+      "status": "PASS",
+      "seconds": 0.0227
+    },
+    {
+      "case": "test_bot.BotTests.test_replay_isolation",
+      "status": "PASS",
+      "seconds": 0.0861
+    },
+    {
+      "case": "test_bot.BotTests.test_school_private_card_hidden_from_uninvited_account",
+      "status": "PASS",
+      "seconds": 0.0666
+    },
+    {
+      "case": "test_bot.BotTests.test_school_roles",
+      "status": "PASS",
+      "seconds": 0.0702
+    },
+    {
+      "case": "test_bot.BotTests.test_school_unfollow_does_not_need_private_detail",
+      "status": "PASS",
+      "seconds": 0.0733
+    },
+    {
+      "case": "test_bot.BotTests.test_short_welcome",
+      "status": "PASS",
+      "seconds": 0.0223
+    },
+    {
+      "case": "test_bot.BotTests.test_uncertain_not_replayed",
+      "status": "PASS",
+      "seconds": 0.0224
+    },
+    {
+      "case": "test_bot_connections.BotConnectionTests.test_connection_commits_and_closes",
+      "status": "PASS",
+      "seconds": 0.0035
+    },
+    {
+      "case": "test_bot_connections.BotConnectionTests.test_connection_rolls_back_and_closes",
+      "status": "PASS",
+      "seconds": 0.0034
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_alias_navigation_and_number_choices",
+      "status": "PASS",
+      "seconds": 0.1073
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_attendance_explicit_absence_then_completion",
+      "status": "PASS",
+      "seconds": 0.4766
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_back_cancel_and_validation_preserve_existing_card",
+      "status": "PASS",
+      "seconds": 0.0942
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_cached_public_card_hidden_when_revision_becomes_private",
+      "status": "PASS",
+      "seconds": 0.0632
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_cached_school_card_hidden_after_helper_removed",
+      "status": "PASS",
+      "seconds": 0.0547
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_cancel_has_confirmation_and_no_side_effect_on_no",
+      "status": "PASS",
+      "seconds": 0.1372
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_class_audience_picker_uses_school_name_and_own_class",
+      "status": "PASS",
+      "seconds": 0.1319
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_closed_team_attendance_is_guided_and_required",
+      "status": "PASS",
+      "seconds": 0.471
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_interest_opt_in_opt_out_confirmation",
+      "status": "PASS",
+      "seconds": 0.1326
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_legacy_cached_reply_without_access_metadata_is_hidden",
+      "status": "PASS",
+      "seconds": 0.0237
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_legacy_edit_of_approved_event_confirms_registration_loss",
+      "status": "PASS",
+      "seconds": 0.3098
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_missing_school_store_is_recoverable",
+      "status": "PASS",
+      "seconds": 0.0365
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_plan_no_room_submit_and_helper_before_review",
+      "status": "PASS",
+      "seconds": 0.2887
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_private_cached_school_reply_revoked",
+      "status": "PASS",
+      "seconds": 0.0473
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_review_decisions_require_reason_and_confirmation",
+      "status": "PASS",
+      "seconds": 0.3839
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_school_invite_picker_does_not_require_uuid",
+      "status": "PASS",
+      "seconds": 0.1015
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_school_onboarding_bound_code_and_no_self_elevation",
+      "status": "PASS",
+      "seconds": 0.0775
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_school_unknown_identity_no_role_grant",
+      "status": "PASS",
+      "seconds": 0.0328
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_short_draft_no_dates_and_durable_resume",
+      "status": "PASS",
+      "seconds": 0.0993
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_spaces_include_rules_and_no_private_titles",
+      "status": "PASS",
+      "seconds": 0.0431
+    },
+    {
+      "case": "test_bot_guided.GuidedBotTests.test_versions_reject_stale_current_and_wizard",
+      "status": "PASS",
+      "seconds": 0.2236
+    },
+    {
+      "case": "test_core.CoreTests.test_approval_revision_releases_space_and_cancels_signups",
+      "status": "PASS",
+      "seconds": 0.0474
+    },
+    {
+      "case": "test_core.CoreTests.test_boundary_adjacent_reservations_allowed",
+      "status": "PASS",
+      "seconds": 0.033
+    },
+    {
+      "case": "test_core.CoreTests.test_cannot_remove_confirmed_attendance",
+      "status": "PASS",
+      "seconds": 0.0348
+    },
+    {
+      "case": "test_core.CoreTests.test_concurrent_booking_only_one_approved",
+      "status": "PASS",
+      "seconds": 0.0284
+    },
+    {
+      "case": "test_core.CoreTests.test_concurrent_last_seat",
+      "status": "PASS",
+      "seconds": 0.0334
+    },
+    {
+      "case": "test_core.CoreTests.test_create_idempotency_and_payload_mismatch",
+      "status": "PASS",
+      "seconds": 0.0244
+    },
+    {
+      "case": "test_core.CoreTests.test_curator_cannot_self_approve",
+      "status": "PASS",
+      "seconds": 0.023
+    },
+    {
+      "case": "test_core.CoreTests.test_draft_private_and_roster_minimized",
+      "status": "PASS",
+      "seconds": 0.0429
+    },
+    {
+      "case": "test_core.CoreTests.test_helper_task_claim_before_approval",
+      "status": "PASS",
+      "seconds": 0.0396
+    },
+    {
+      "case": "test_core.CoreTests.test_invalid_capacity_time_and_fields",
+      "status": "PASS",
+      "seconds": 0.0318
+    },
+    {
+      "case": "test_core.CoreTests.test_no_enrollment_before_approval",
+      "status": "PASS",
+      "seconds": 0.0305
+    },
+    {
+      "case": "test_core.CoreTests.test_no_premature_attendance_or_completion",
+      "status": "PASS",
+      "seconds": 0.0409
+    },
+    {
+      "case": "test_core.CoreTests.test_notifications_do_not_affect_commit",
+      "status": "PASS",
+      "seconds": 0.034
+    },
+    {
+      "case": "test_core.CoreTests.test_release_last_task_loses_draft_access_but_commits",
+      "status": "PASS",
+      "seconds": 0.0308
+    },
+    {
+      "case": "test_core.CoreTests.test_repeated_join_is_idempotent",
+      "status": "PASS",
+      "seconds": 0.0313
+    },
+    {
+      "case": "test_core.CoreTests.test_request_changes_and_resubmit",
+      "status": "PASS",
+      "seconds": 0.0285
+    },
+    {
+      "case": "test_core.CoreTests.test_scheduling_conflict_for_pupil",
+      "status": "PASS",
+      "seconds": 0.0381
+    },
+    {
+      "case": "test_core.CoreTests.test_stale_version",
+      "status": "PASS",
+      "seconds": 0.0228
+    },
+    {
+      "case": "test_core.CoreTests.test_student_cannot_approve",
+      "status": "PASS",
+      "seconds": 0.0234
+    },
+    {
+      "case": "test_core.CoreTests.test_team_has_no_public_registration",
+      "status": "PASS",
+      "seconds": 0.0274
+    },
+    {
+      "case": "test_core.CoreTests.test_unregister_and_cancel_free_booking",
+      "status": "PASS",
+      "seconds": 0.0477
+    },
+    {
+      "case": "test_core.CoreTests.test_whole_flow_and_persisted_result",
+      "status": "PASS",
+      "seconds": 0.0529
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_author_result_waits_for_explicit_attendance_and_curator",
+      "status": "PASS",
+      "seconds": 0.0475
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_cancel_during_reapproval_notifies_followers_of_cancellation",
+      "status": "PASS",
+      "seconds": 0.0433
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_conditions_frozen_after_result_submission",
+      "status": "PASS",
+      "seconds": 0.0366
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_curator_author_cannot_confirm_own_result",
+      "status": "PASS",
+      "seconds": 0.0377
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_curator_cannot_replace_author_result",
+      "status": "PASS",
+      "seconds": 0.0321
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_edit_reapproval_reopen_retains_notifications_not_registration",
+      "status": "PASS",
+      "seconds": 0.0541
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_invite_cannot_grant_adult_or_invite_by_nonowner",
+      "status": "PASS",
+      "seconds": 0.0279
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_invited_helper_works_before_submit_and_membership_is_independent",
+      "status": "PASS",
+      "seconds": 0.0363
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_kind_cannot_turn_public_followers_into_private_team",
+      "status": "PASS",
+      "seconds": 0.0352
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_legacy_migration_does_not_invent_absence_or_confirmation",
+      "status": "PASS",
+      "seconds": 0.0357
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_optout_works_when_card_is_private_and_stays_after_restart",
+      "status": "PASS",
+      "seconds": 0.0543
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_past_edit_cannot_destroy_recorded_attendance",
+      "status": "PASS",
+      "seconds": 0.0425
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_pending_private_delivery_rechecks_access",
+      "status": "PASS",
+      "seconds": 0.0342
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_pending_result_keeps_booking_reserved",
+      "status": "PASS",
+      "seconds": 0.0364
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_registered_user_must_cancel_before_optout",
+      "status": "PASS",
+      "seconds": 0.0382
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_safe_reapproval_notice_is_deliverable_without_card_access",
+      "status": "PASS",
+      "seconds": 0.0515
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_task_changes_notify_author_and_assignee",
+      "status": "PASS",
+      "seconds": 0.0304
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_task_history_cannot_masquerade_as_curator_confirmation",
+      "status": "PASS",
+      "seconds": 0.0258
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_team_capacity_counts_author_members_and_assignees",
+      "status": "PASS",
+      "seconds": 0.0358
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_team_private_in_every_state",
+      "status": "PASS",
+      "seconds": 0.0773
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_team_without_registrations_still_requires_curator_confirmation",
+      "status": "PASS",
+      "seconds": 0.0441
+    },
+    {
+      "case": "test_critical_audit.CriticalAuditTests.test_unmoderated_event_not_public_after_submit_or_cancel",
+      "status": "PASS",
+      "seconds": 0.0284
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_429_is_durable_delayed_and_not_replayed_early",
+      "status": "PASS",
+      "seconds": 0.0484
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_5xx_uncertain_and_4xx_rejected",
+      "status": "PASS",
+      "seconds": 0.0403
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_certificate_failure_never_bypasses_tls",
+      "status": "PASS",
+      "seconds": 0.0332
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_concurrent_workers_claim_once",
+      "status": "PASS",
+      "seconds": 0.0371
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_generic_notice_binds_original_access_version",
+      "status": "PASS",
+      "seconds": 0.0326
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_generic_obsolete_notice_cannot_send_or_retry",
+      "status": "PASS",
+      "seconds": 0.0369
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_interrupted_send_needs_reconciliation",
+      "status": "PASS",
+      "seconds": 0.037
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_legacy_known_account_reply_is_not_implicitly_reauthorized",
+      "status": "PASS",
+      "seconds": 0.0327
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_missing_mapping_is_visible_and_unblocks_after_link",
+      "status": "PASS",
+      "seconds": 0.042
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_operator_mark_delivered_requires_message_id",
+      "status": "PASS",
+      "seconds": 0.0469
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_operator_retry_requires_actual_check_and_audits",
+      "status": "PASS",
+      "seconds": 0.0506
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_other_school_admin_cannot_read_or_resolve_queue",
+      "status": "PASS",
+      "seconds": 0.0335
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_preconnect_failure_retries_but_timeout_does_not",
+      "status": "PASS",
+      "seconds": 0.0446
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_prepared_card_does_not_send_after_member_revocation",
+      "status": "PASS",
+      "seconds": 0.0629
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_queued_bot_reply_invalidated_by_role_change",
+      "status": "PASS",
+      "seconds": 0.0329
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_render_snapshot_not_reauthorized_after_role_race",
+      "status": "PASS",
+      "seconds": 0.0548
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_retries_have_a_limit",
+      "status": "PASS",
+      "seconds": 0.0437
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_retry_after_http_date_and_fallback",
+      "status": "PASS",
+      "seconds": 0.0439
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_students_and_curators_cannot_manage_delivery",
+      "status": "PASS",
+      "seconds": 0.0339
+    },
+    {
+      "case": "test_delivery_reliability.DeliveryReliabilityTests.test_transport_uses_authorization_header_and_official_keyboard",
+      "status": "PASS",
+      "seconds": 0.0269
+    },
+    {
+      "case": "test_domain_requirements.ClosedTeamAttendanceTests.test_legacy_completed_team_does_not_invent_attendance",
+      "status": "PASS",
+      "seconds": 0.0469
+    },
+    {
+      "case": "test_domain_requirements.ClosedTeamAttendanceTests.test_rereview_rebuilds_only_unstarted_roster_without_event_registration",
+      "status": "PASS",
+      "seconds": 0.0404
+    },
+    {
+      "case": "test_domain_requirements.ClosedTeamAttendanceTests.test_roster_sync_before_start_and_no_removal_after_start",
+      "status": "PASS",
+      "seconds": 0.0454
+    },
+    {
+      "case": "test_domain_requirements.ClosedTeamAttendanceTests.test_team_attendance_is_separate_private_and_required",
+      "status": "PASS",
+      "seconds": 0.0562
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_access_version_increases_only_on_access_changes",
+      "status": "PASS",
+      "seconds": 0.0293
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_admin_cannot_remove_interval_of_approved_booking",
+      "status": "PASS",
+      "seconds": 0.0302
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_admin_class_user_room_and_manual_intervals",
+      "status": "PASS",
+      "seconds": 0.0333
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_admin_space_change_requires_reapproval_and_reregistration",
+      "status": "PASS",
+      "seconds": 0.0387
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_busy_slots_do_not_reveal_private_team_identity",
+      "status": "PASS",
+      "seconds": 0.0297
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_deactivated_author_history_remains_readable_to_teacher",
+      "status": "PASS",
+      "seconds": 0.026
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_decline_requires_reason_and_is_terminal",
+      "status": "PASS",
+      "seconds": 0.0335
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_defer_requires_reason_and_can_resubmit",
+      "status": "PASS",
+      "seconds": 0.0327
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_full_validation_happens_at_submit_and_approve",
+      "status": "PASS",
+      "seconds": 0.0326
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_inactive_helper_can_be_removed_without_losing_history",
+      "status": "PASS",
+      "seconds": 0.0292
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_interest_optin_targets_only_matching_public_topic",
+      "status": "PASS",
+      "seconds": 0.031
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_interest_optout_cancels_queued_topic_notice_and_survives_restart",
+      "status": "PASS",
+      "seconds": 0.0342
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_no_room_flow_and_parallel_events_have_no_room_conflict",
+      "status": "PASS",
+      "seconds": 0.0438
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_old_database_migration_preserves_history_all_links_and_decisions",
+      "status": "PASS",
+      "seconds": 0.0744
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_only_assigned_responsible_can_approve_room",
+      "status": "PASS",
+      "seconds": 0.0301
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_partial_draft_survives_restart_and_can_invite_before_dates",
+      "status": "PASS",
+      "seconds": 0.0323
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_private_team_never_broadcasts_to_interest_subscribers",
+      "status": "PASS",
+      "seconds": 0.0326
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_responsible_must_be_active_same_school_teacher",
+      "status": "PASS",
+      "seconds": 0.0258
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_revision_cancels_old_conditions_before_queue_can_send",
+      "status": "PASS",
+      "seconds": 0.0438
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_space_capacity_accounts_for_public_seats_team_and_adult",
+      "status": "PASS",
+      "seconds": 0.032
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_storage_policy_is_bounded_audited_and_non_destructive",
+      "status": "PASS",
+      "seconds": 0.027
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_submit_needs_choice_of_room_or_explicit_no_room",
+      "status": "PASS",
+      "seconds": 0.1892
+    },
+    {
+      "case": "test_domain_requirements.DomainRequirementsTests.test_teacher_is_not_admin_and_student_cannot_self_promote",
+      "status": "PASS",
+      "seconds": 0.0359
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_actual_blocked_register_edit_link_cannot_revive_confirmation",
+      "status": "PASS",
+      "seconds": 0.1086
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_admin_access_changes_revoke_all_unsent_states",
+      "status": "PASS",
+      "seconds": 0.0455
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_edit_cancel_and_space_invalidate_all_delivery_states",
+      "status": "PASS",
+      "seconds": 0.0865
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_other_registration_and_task_do_not_obsolete_current_confirmation",
+      "status": "PASS",
+      "seconds": 0.0363
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_uncertain_stale_notice_keeps_audit_but_retry_is_forbidden",
+      "status": "PASS",
+      "seconds": 0.0458
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_unfollow_and_topic_optout_do_not_revive_on_resubscribe",
+      "status": "PASS",
+      "seconds": 0.0481
+    },
+    {
+      "case": "test_domain_requirements.NotificationRevisionTests.test_unregister_invalidates_confirmation_for_participant_and_owner",
+      "status": "PASS",
+      "seconds": 0.0423
+    },
+    {
+      "case": "test_healthcheck.HealthcheckTests.test_bad_or_large_response_fails",
+      "status": "PASS",
+      "seconds": 0.0009
+    },
+    {
+      "case": "test_healthcheck.HealthcheckTests.test_demo_rejected_unless_explicit",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_healthcheck.HealthcheckTests.test_invalid_origin_or_port_never_connects",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_healthcheck.HealthcheckTests.test_only_loopback_correct_host_no_auth_or_proxy",
+      "status": "PASS",
+      "seconds": 0.0005
+    },
+    {
+      "case": "test_healthcheck.HealthcheckTests.test_redirect_is_never_followed",
+      "status": "PASS",
+      "seconds": 0.0006
+    },
+    {
+      "case": "test_http.HttpTests.test_access_change_invalidates_existing_http_session",
+      "status": "PASS",
+      "seconds": 0.5433
+    },
+    {
+      "case": "test_http.HttpTests.test_admin_and_topic_routes_enforce_school_roles",
+      "status": "PASS",
+      "seconds": 0.5707
+    },
+    {
+      "case": "test_http.HttpTests.test_auth_and_csrf",
+      "status": "PASS",
+      "seconds": 0.5414
+    },
+    {
+      "case": "test_http.HttpTests.test_demo_gates",
+      "status": "PASS",
+      "seconds": 0.5451
+    },
+    {
+      "case": "test_http.HttpTests.test_health_and_static",
+      "status": "PASS",
+      "seconds": 0.5492
+    },
+    {
+      "case": "test_http.HttpTests.test_host_and_cross_origin",
+      "status": "PASS",
+      "seconds": 0.5453
+    },
+    {
+      "case": "test_http.HttpTests.test_json_error",
+      "status": "PASS",
+      "seconds": 0.5303
+    },
+    {
+      "case": "test_http.HttpTests.test_max_enrollment_uses_signed_identity_not_role_fields",
+      "status": "PASS",
+      "seconds": 0.5393
+    },
+    {
+      "case": "test_http.HttpTests.test_max_mode_disables_demo",
+      "status": "PASS",
+      "seconds": 0.5418
+    },
+    {
+      "case": "test_http.HttpTests.test_official_sdk_only_in_max_html_before_application",
+      "status": "PASS",
+      "seconds": 0.5446
+    },
+    {
+      "case": "test_http.HttpTests.test_private_team_hidden_in_http_detail_and_bootstrap",
+      "status": "PASS",
+      "seconds": 0.5509
+    },
+    {
+      "case": "test_http.HttpTests.test_role_forgery_rejected",
+      "status": "PASS",
+      "seconds": 0.539
+    },
+    {
+      "case": "test_http.HttpTests.test_static_allowlist_and_security_headers",
+      "status": "PASS",
+      "seconds": 0.5464
+    },
+    {
+      "case": "test_max.BotWebhookTests.test_event_to_reply_and_safe_retry",
+      "status": "PASS",
+      "seconds": 0.0414
+    },
+    {
+      "case": "test_max.BotWebhookTests.test_group_and_bad_secret_rejected",
+      "status": "PASS",
+      "seconds": 0.0177
+    },
+    {
+      "case": "test_max.BotWebhookTests.test_send_timeout_not_replayed",
+      "status": "PASS",
+      "seconds": 0.0513
+    },
+    {
+      "case": "test_max.MaxTests.test_duplicate_hash_rejected",
+      "status": "PASS",
+      "seconds": 0.0004
+    },
+    {
+      "case": "test_max.MaxTests.test_duplicate_user_rejected",
+      "status": "PASS",
+      "seconds": 0.0001
+    },
+    {
+      "case": "test_max.MaxTests.test_no_type_coercion",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_max.MaxTests.test_signature_tamper",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_max.MaxTests.test_stale_and_future_rejected",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_max.MaxTests.test_successful_delivery_recorded",
+      "status": "PASS",
+      "seconds": 0.0348
+    },
+    {
+      "case": "test_max.MaxTests.test_unknown_school_user_not_autoregistered",
+      "status": "PASS",
+      "seconds": 0.0178
+    },
+    {
+      "case": "test_max.MaxTests.test_valid_signature",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_max.MaxTests.test_webhook_secret_dedupe_and_delivery_uncertainty",
+      "status": "PASS",
+      "seconds": 0.0391
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_cli_never_claims_live_bot",
+      "status": "PASS",
+      "seconds": 0.0012
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_does_not_follow_symlinks_or_execute_shell",
+      "status": "PASS",
+      "seconds": 0.0008
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_missing_and_public_file",
+      "status": "PASS",
+      "seconds": 0.0004
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_missing_config_is_not_ready",
+      "status": "PASS",
+      "seconds": 0.0
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_origin_accepts_https_default_port",
+      "status": "PASS",
+      "seconds": 0.0001
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_origin_rejects_unsafe_or_unsupported_values",
+      "status": "PASS",
+      "seconds": 0.0002
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_private_file_and_duplicate_keys",
+      "status": "PASS",
+      "seconds": 0.0007
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_rejects_invalid_secret",
+      "status": "PASS",
+      "seconds": 0.0
+    },
+    {
+      "case": "test_readiness.ReadinessTests.test_valid_config_does_not_expose_values",
+      "status": "PASS",
+      "seconds": 0.0
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_admin_cannot_overwrite_foreign_user_or_space_ids",
+      "status": "PASS",
+      "seconds": 0.0337
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_admin_class_change_cancels_only_ineligible_future_signup",
+      "status": "PASS",
+      "seconds": 0.0464
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_admin_class_change_does_not_erase_past_attendance",
+      "status": "PASS",
+      "seconds": 0.0458
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_all_roles_cannot_read_or_mutate_foreign_card_in_every_status",
+      "status": "PASS",
+      "seconds": 0.6682
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_audience_revision_cancels_enrolment_and_blocks_old_follower",
+      "status": "PASS",
+      "seconds": 0.0486
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_bootstrap_and_admin_data_never_list_foreign_resources",
+      "status": "PASS",
+      "seconds": 0.0414
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_changed_class_revokes_old_queued_permission",
+      "status": "PASS",
+      "seconds": 0.0423
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_class_audience_limits_view_invite_task_follow_and_registration",
+      "status": "PASS",
+      "seconds": 0.0551
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_foreign_safe_notice_cannot_bypass_permission_even_with_corrupt_follower",
+      "status": "PASS",
+      "seconds": 0.0456
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_foreign_space_invitation_assignment_and_responsible_rejected",
+      "status": "PASS",
+      "seconds": 0.0397
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_helper_picker_only_owner_same_school_and_audience",
+      "status": "PASS",
+      "seconds": 0.0379
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_member_prevents_silent_audience_change_excluding_team",
+      "status": "PASS",
+      "seconds": 0.0401
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_narrowed_audience_receipt_delivers_without_granting_access",
+      "status": "PASS",
+      "seconds": 0.0628
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_parallel_audience_uses_class_mapping_not_string_prefix",
+      "status": "PASS",
+      "seconds": 0.0424
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_scoped_topics_cannot_subscribe_to_other_school_only_interest",
+      "status": "PASS",
+      "seconds": 0.0332
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_student_cannot_target_foreign_class_or_parallel",
+      "status": "PASS",
+      "seconds": 0.0315
+    },
+    {
+      "case": "test_school_isolation.SchoolIsolationTests.test_topic_broadcast_respects_school_and_current_audience",
+      "status": "PASS",
+      "seconds": 0.0415
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_admin_and_confirmation_required",
+      "status": "PASS",
+      "seconds": 0.0273
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_attempt_rate_limit_persists_and_expires",
+      "status": "PASS",
+      "seconds": 0.0417
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_code_hash_only_exact_account_and_no_admin",
+      "status": "PASS",
+      "seconds": 0.0328
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_concurrent_redeem_creates_one_account",
+      "status": "PASS",
+      "seconds": 0.0364
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_creator_revocation_invalidates_pending_code",
+      "status": "PASS",
+      "seconds": 0.0374
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_expired_and_revoked_codes_do_not_grant_access",
+      "status": "PASS",
+      "seconds": 0.0378
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_invalid_class_and_max_identity_rejected",
+      "status": "PASS",
+      "seconds": 0.028
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_invitation_does_not_override_an_existing_account",
+      "status": "PASS",
+      "seconds": 0.0218
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_new_invitation_revokes_older_pending_code",
+      "status": "PASS",
+      "seconds": 0.0334
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_old_code_cannot_log_into_rebound_max_account",
+      "status": "PASS",
+      "seconds": 0.0375
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_repeat_same_redeem_is_idempotent",
+      "status": "PASS",
+      "seconds": 0.0344
+    },
+    {
+      "case": "test_school_onboarding.SchoolOnboardingTests.test_school_bound_listing_and_revocation",
+      "status": "PASS",
+      "seconds": 0.0321
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_cli_without_apply_is_preview_even_with_confirmations",
+      "status": "PASS",
+      "seconds": 0.0212
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_concurrent_identical_setup_creates_only_one_admin",
+      "status": "PASS",
+      "seconds": 0.0374
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_exact_active_administrator_only_is_idempotent",
+      "status": "PASS",
+      "seconds": 0.0226
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_existing_preview_is_read_only",
+      "status": "PASS",
+      "seconds": 0.0187
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_existing_student_or_revoked_admin_not_elevated",
+      "status": "PASS",
+      "seconds": 0.0296
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_explicit_access_and_adult_attestation_both_required",
+      "status": "PASS",
+      "seconds": 0.0003
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_failure_rolls_back_school_user_and_audit",
+      "status": "PASS",
+      "seconds": 0.0214
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_new_database_atomic_and_audited_no_demo_users",
+      "status": "PASS",
+      "seconds": 0.0236
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_nonempty_database_does_not_get_another_administrator",
+      "status": "PASS",
+      "seconds": 0.0218
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_preview_missing_database_makes_no_files",
+      "status": "PASS",
+      "seconds": 0.0004
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_preview_refuses_live_wal_without_touching_it",
+      "status": "PASS",
+      "seconds": 0.0191
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_staged_failure_leaves_no_target_or_temporary_files",
+      "status": "PASS",
+      "seconds": 0.0164
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_validation_and_symlink_fail_closed",
+      "status": "PASS",
+      "seconds": 0.0157
+    },
+    {
+      "case": "test_school_setup.SchoolSetupTests.test_zero_byte_existing_file_is_not_silently_initialized",
+      "status": "PASS",
+      "seconds": 0.0011
+    },
+    {
+      "case": "test_startup_smoke.StartupSmokeTests.test_max_mode_startup_restart_and_database_persistence",
+      "status": "PASS",
+      "seconds": 0.3159
+    },
+    {
+      "case": "test_test_runner.StrictRunnerTests.test_resource_finalizer_makes_runner_nonzero",
+      "status": "PASS",
+      "seconds": 0.1711
+    }
+  ],
+  "checks": [
+    {
+      "command": [
+        "node",
+        "--check",
+        "web/app.js"
+      ],
+      "status": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "node",
+        "tests/test_web_guided.js"
+      ],
+      "status": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "compileall",
+        "-q",
+        "vneurok",
+        "tests",
+        "scripts"
+      ],
+      "status": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "status": "PASS",
+      "exit_code": 0
+    }
+  ],
+  "not_verified": [
+    "Live MAX",
+    "Chosen HTTPS host and webhook",
+    "Current Docker image",
+    "Real school pilot and target timings",
+    "Publication and contest submission"
+  ]
+}

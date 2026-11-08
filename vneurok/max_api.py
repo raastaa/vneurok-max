@@ -9,6 +9,7 @@ from urllib.parse import parse_qsl, urlencode
 from urllib.request import Request, build_opener, HTTPRedirectHandler
 from urllib.error import HTTPError, URLError
 from .core import DomainError, require, now_iso
+from .delivery import ensure_delivery_schema,flush_queue
 
 
 def validate_init_data(raw, token, now=None, max_age=3600):
@@ -69,38 +70,18 @@ class NoRedirect(HTTPRedirectHandler):
         return None
 
 
-def flush_outbox(store,token=None,send=False,transport=None):
-    """Проверяем очередь. Если доставка неясна, сообщение не отправляется повторно."""
-    with store.connection() as db:
-        pending=db.execute("SELECT o.id,o.payload,u.max_id FROM outbox o JOIN users u ON u.id=o.user_id WHERE o.state='pending' ORDER BY o.id").fetchall()
+def flush_outbox(store,token=None,send=False,transport=None,now=None):
+    """Durable notifications; definite rejection may retry, uncertain sends don't."""
     if not send:
-        return {'pending':len(pending),'deliverable':sum(bool(r['max_id']) for r in pending),'sent':0,'mode':'dry-run'}
+        with store.connection() as db:
+            rows=db.execute("SELECT o.state,u.max_id FROM outbox o JOIN users u ON u.id=o.user_id WHERE o.state IN ('pending','blocked')").fetchall()
+        return {'pending':len(rows),'deliverable':sum(bool(r['max_id']) for r in rows),'sent':0,'mode':'dry-run'}
     require(bool(token),'unconfigured','Не настроен токен MAX.')
-    sent=failed=uncertain=0
-    def network_send(recipient,payload):
-        send_max_text(token,recipient,payload['text'])
-    transport=transport or network_send
-    for row in pending:
-        if not row['max_id']:
-            continue
-        with store.connection(True) as db:
-            claimed=db.execute("UPDATE outbox SET state='sending',attempts=attempts+1 WHERE id=? AND state='pending'",(row['id'],)).rowcount
-        if not claimed:
-            continue
-        try:
-            payload=json.loads(row['payload'])
-            transport(row['max_id'],{'text':payload['text']})
-            state,error='sent',''; sent+=1
-        except HTTPError as e:
-            if 400<=e.code<500:
-                state,error='failed',f'HTTP {e.code}'; failed+=1
-            else:
-                state,error='uncertain',f'HTTP {e.code}; проверить доставку перед повтором'; uncertain+=1
-        except Exception:
-            state,error='uncertain','Ответ не подтверждён; проверить доставку перед повтором'; uncertain+=1
-        with store.connection(True) as db:
-            db.execute('UPDATE outbox SET state=?,last_error=?,sent_at=? WHERE id=?',(state,error,now_iso() if state=='sent' else None,row['id']))
-    return {'sent':sent,'failed':failed,'uncertain':uncertain,'mode':'send'}
+    def deliver(recipient,row):
+        payload=json.loads(row['payload'])
+        if transport:return transport(recipient,{'text':payload['text']})
+        return send_max_text(token,recipient,payload['text'])
+    return {**flush_queue(store,'outbox',deliver,now=now),'mode':'send'}
 
 
 def process_bot_update(store,router,payload,provided_secret,expected_secret):
@@ -133,10 +114,18 @@ def _process_bot_update(store,router,payload,provided_secret,expected_secret):
         previous=db.execute('SELECT 1 FROM bot_outbox WHERE event_key=?',(key,)).fetchone()
     if previous:
         return {'ok':True,'duplicate':True}
+    ensure_delivery_schema(store)
     reply=router.handle(uid,text,key)
     require(isinstance(reply,str) and 0<len(reply)<=4000,'invalid_reply','Не удалось подготовить ответ.',500)
     with store.connection(True) as db:
-        db.execute('INSERT OR IGNORE INTO bot_outbox(event_key,max_user_id,text,created_at) VALUES(?,?,?,?)',(key,uid,reply,now_iso()))
+        guard=router.reply_guard(uid,key) if hasattr(router,'reply_guard') else None
+        if isinstance(guard,dict):
+            actor=guard.get('access');cards=guard.get('cards',[]);guarded=1
+        else:
+            mapped=db.execute('SELECT id FROM users WHERE max_id=?',(str(uid),)).fetchone()
+            actor=store.user(mapped['id'],db) if mapped else None;cards=[];guarded=0
+        attachments=navigation_keyboard(getattr(router,'web_app_username',''))
+        db.execute('INSERT OR IGNORE INTO bot_outbox(event_key,max_user_id,text,created_at,attachments,source_user_id,source_school_id,source_access_version,source_card_guards,source_guarded) VALUES(?,?,?,?,?,?,?,?,?,?)',(key,uid,reply,now_iso(),json.dumps(attachments,ensure_ascii=False),actor['id'] if actor else None,actor.get('school_id') if actor else None,actor.get('access_version',1) if actor else None,json.dumps(cards),guarded))
     return {'ok':True,'queued':True}
 
 
@@ -144,39 +133,42 @@ _send_lock=threading.Lock()
 _last_send={}
 
 
-def send_max_text(token,user_id,text):
-    # MAX разрешает не больше двух сообщений в секунду в один диалог.
+def navigation_keyboard(web_app_username=''):
+    rows=[[{'type':'message','text':'Новая идея'},{'type':'message','text':'Все идеи'}],
+          [{'type':'message','text':'Моё участие'},{'type':'message','text':'Мои интересы'}],
+          [{'type':'message','text':'Помощь'}]]
+    if web_app_username:
+        require(re.fullmatch(r'[A-Za-z0-9_]{5,64}',web_app_username) is not None,'invalid_config','Некорректное публичное имя бота.')
+        rows.insert(0,[{'type':'open_app','text':'Открыть Внеурок','web_app':web_app_username}])
+    return [{'type':'inline_keyboard','payload':{'buttons':rows}}]
+
+
+def send_max_message(token,user_id,payload):
+    require(isinstance(payload,dict) and isinstance(payload.get('text'),str) and 0<len(payload['text'])<=4000,'invalid_reply','Некорректный ответ MAX.')
+    body={'text':payload['text']}
+    if payload.get('attachments'):body['attachments']=payload['attachments']
+    # Official MAX limit: at most two messages/second per dialog.
     with _send_lock:
         key=str(user_id)
         wait=0.55-(time.monotonic()-_last_send.get(key,0))
-        if wait>0:
-            time.sleep(wait)
+        if wait>0:time.sleep(wait)
         _last_send[key]=time.monotonic()
-    req=Request('https://platform-api2.max.ru/messages?'+urlencode({'user_id':user_id}),data=json.dumps({'text':text},ensure_ascii=False).encode(),headers={'Authorization':token,'Content-Type':'application/json'},method='POST')
+    req=Request('https://platform-api2.max.ru/messages?'+urlencode({'user_id':user_id}),data=json.dumps(body,ensure_ascii=False).encode(),headers={'Authorization':token,'Content-Type':'application/json'},method='POST')
     with build_opener(NoRedirect()).open(req,timeout=15) as response:
         parsed=json.loads(response.read(65536))
-        if not isinstance(parsed,dict) or not parsed.get('message'):
-            raise RuntimeError('Ответ без подтверждения сообщения')
+        message=parsed.get('message') if isinstance(parsed,dict) else None
+        mid=message.get('body',{}).get('mid') if isinstance(message,dict) else None
+        if not isinstance(mid,str) or not mid:raise RuntimeError('Delivery acknowledgement has no message ID')
+        return {'message_id':mid}
 
 
-def flush_bot_outbox(store,token,transport=None):
-    """Отправляем только новые ответы. Неясную доставку повторять нельзя."""
+def send_max_text(token,user_id,text):
+    return send_max_message(token,user_id,{'text':text})
+
+
+def flush_bot_outbox(store,token,transport=None,now=None):
     require(bool(token),'unconfigured','Не настроен токен MAX.')
-    with store.connection() as db:
-        rows=db.execute("SELECT * FROM bot_outbox WHERE state='pending' ORDER BY rowid LIMIT 20").fetchall()
-    result={'sent':0,'failed':0,'uncertain':0}
-    transport=transport or (lambda uid,text:send_max_text(token,uid,text))
-    for row in rows:
-        with store.connection(True) as db:
-            if not db.execute("UPDATE bot_outbox SET state='sending',attempts=attempts+1 WHERE event_key=? AND state='pending'",(row['event_key'],)).rowcount:
-                continue
-        try:
-            transport(row['max_user_id'],row['text']); state,error='sent',''
-        except HTTPError as e:
-            state='failed' if 400<=e.code<500 else 'uncertain'; error=f'HTTP {e.code}'
-        except Exception:
-            state,error='uncertain','Доставка не подтверждена. Перед повтором проверьте чат.'
-        result[state]+=1
-        with store.connection(True) as db:
-            db.execute('UPDATE bot_outbox SET state=?,last_error=?,sent_at=? WHERE event_key=?',(state,error,now_iso() if state=='sent' else None,row['event_key']))
-    return result
+    def deliver(recipient,row):
+        if transport:return transport(recipient,row['text'])
+        return send_max_message(token,recipient,{'text':row['text'],'attachments':json.loads(row['attachments'])})
+    return flush_queue(store,'bot_outbox',deliver,now=now)

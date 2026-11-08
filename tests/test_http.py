@@ -60,4 +60,57 @@ class HttpTests(unittest.TestCase):
         self.assertTrue(self.call('/health')[1]['ok'])
         for path in ['/','/app.js','/style.css']: self.assertEqual(self.call(path)[0],200)
 
+    def test_private_team_hidden_in_http_detail_and_bootstrap(self):
+        with self.app.store.connection(True) as db:
+            db.execute("UPDATE initiatives SET kind='team',status='submitted' WHERE id='demo-game-workshop'")
+        status,data,headers=self.call('/api/demo/login','POST',{'user_id':'student-visitor'})
+        self.assertEqual(status,200);self.cookie=headers['Set-Cookie'].split(';')[0]
+        self.assertEqual(self.call('/api/bootstrap')[1]['initiatives'],[])
+        self.assertEqual(self.call('/api/initiatives/demo-game-workshop')[0],403)
+
+    def login_as(self,user_id):
+        status,data,headers=self.call('/api/demo/login','POST',{'user_id':user_id})
+        self.assertEqual(status,200);self.csrf=data['csrf'];self.cookie=headers['Set-Cookie'].split(';')[0]
+
+    def test_admin_and_topic_routes_enforce_school_roles(self):
+        self.login_as('curator');self.assertEqual(self.call('/api/admin')[0],403)
+        self.login_as('student-author')
+        headers={'X-CSRF-Token':self.csrf}
+        self.assertEqual(self.call('/api/interests','POST',{'interest_id':'science','enabled':True},headers)[0],200)
+        self.assertIn('science',self.call('/api/bootstrap')[1]['interest_subscriptions'])
+        self.assertEqual(self.call('/api/interests','POST',{'interest_id':'science','enabled':False,'school_id':'other'},headers)[0],400)
+        self.assertEqual(self.call('/api/admin','POST',{'action':'set_retention','retention_days':100},headers)[0],403)
+        self.login_as('admin');headers={'X-CSRF-Token':self.csrf}
+        self.assertEqual(self.call('/api/admin')[0],200)
+        self.assertEqual(self.call('/api/delivery')[0],200)
+        self.assertEqual(self.call('/api/admin','POST',{'action':'upsert_class','id':'9А','name':'9А','parallel':'9'},headers)[0],200)
+
+    def test_access_change_invalidates_existing_http_session(self):
+        self.login_as('student-author')
+        with self.app.store.connection(True) as db:db.execute("UPDATE users SET access_version=access_version+1 WHERE id='student-author'")
+        self.assertEqual(self.call('/api/bootstrap')[0],401)
+
+    def test_max_enrollment_uses_signed_identity_not_role_fields(self):
+        from test_max import TOKEN,signed
+        self.login_as('admin')
+        headers={'X-CSRF-Token':self.csrf}
+        status,inv,_=self.call('/api/admin/invitations','POST',{'max_user_id':998877,'name':'Тестовый взрослый аккаунт','role':'student','class_id':'7А','confirm':True},headers)
+        self.assertEqual(status,201)
+        self.app.demo=False;self.app.token=TOKEN
+        init=signed(user=json.dumps({'id':998877}))
+        forged={'init_data':init,'invitation_code':inv['code'],'is_admin':True}
+        self.assertEqual(self.call('/api/max/enroll','POST',forged)[0],400)
+        status,data,_=self.call('/api/max/enroll','POST',{'init_data':init,'invitation_code':inv['code']})
+        self.assertEqual(status,200);self.assertEqual(data['user']['is_admin'],0)
+        self.assertEqual(data['user']['role'],'student')
+
+    def test_official_sdk_only_in_max_html_before_application(self):
+        body=self.call('/')[1].decode();self.assertNotIn('https://st.max.ru/js/max-web-app.js',body)
+        self.app.demo=False
+        status,body,headers=self.call('/');body=body.decode()
+        self.assertEqual(status,200)
+        self.assertLess(body.index('https://st.max.ru/js/max-web-app.js'),body.index('/app.js'))
+        self.assertIn('https://st.max.ru/js/max-web-app.js',headers['Content-Security-Policy'])
+        self.assertNotIn('unsafe-inline',headers['Content-Security-Policy'])
+
 if __name__=='__main__': unittest.main()
