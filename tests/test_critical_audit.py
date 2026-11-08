@@ -174,6 +174,8 @@ class CriticalAuditTests(unittest.TestCase):
         r=self.action(self.author,'submit_result',result='Команда подготовила учебный проект.')
         self.assertEqual(r['status'],'awaiting_confirmation')
         self.error('forbidden',lambda:self.action(self.author,'complete'))
+        self.error('attendance_required',lambda:self.action(self.curator,'complete'))
+        self.action(self.curator,'attendance',user_id=self.author,attended=True)
         self.assertEqual(self.action(self.curator,'complete')['status'],'completed')
         self.error('forbidden',lambda:self.row(self.visitor))
 

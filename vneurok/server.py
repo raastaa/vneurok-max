@@ -13,6 +13,9 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler,ThreadingHTTPServer
 from urllib.parse import urlsplit
 from .core import Store,DomainError,require
+from .delivery import ensure_delivery_schema,delivery_summary,resolve_delivery
+from .onboarding import create_invitation,redeem_invitation,list_invitations,revoke_invitation
+from .readiness import inspect_config,valid_origin
 from .max_api import validate_init_data,accept_webhook,process_bot_update,flush_bot_outbox,flush_outbox
 
 ROOT=Path(__file__).resolve().parent.parent
@@ -20,7 +23,7 @@ MAX_BODY=32768
 
 
 class Application:
-    def __init__(self,db_path,demo=True,origin='http://127.0.0.1:8765',token='',webhook_secret=''):
+    def __init__(self,db_path,demo=True,origin='http://127.0.0.1:8765',token='',webhook_secret='',web_app_username=''):
         self.store=Store(db_path); self.demo=demo; self.origin=origin.rstrip('/')
         self.token=token; self.webhook_secret=webhook_secret; self.sessions={}; self.lock=threading.Lock()
         self.login_hits={}
@@ -31,9 +34,12 @@ class Application:
             require(parsed.hostname in ('127.0.0.1','localhost','::1'),'invalid_config','Демонстрация разрешена только на локальном компьютере.')
             self.store.seed_demo()
         else:
-            require(parsed.scheme=='https' and bool(token) and bool(webhook_secret),'invalid_config','Для режима MAX нужны HTTPS APP_ORIGIN, MAX_BOT_TOKEN и MAX_WEBHOOK_SECRET.')
+            require(valid_origin(self.origin) and bool(token) and bool(webhook_secret),'invalid_config','Для режима MAX нужны HTTPS APP_ORIGIN, MAX_BOT_TOKEN и MAX_WEBHOOK_SECRET.')
             from .bot import BotRouter
             self.bot_router=BotRouter(Path(db_path).parent/'bot-demo',self.store)
+            require(not web_app_username or re.fullmatch(r'[A-Za-z0-9_]{5,64}',web_app_username),'invalid_config','Некорректное публичное имя бота.')
+            self.bot_router.web_app_username=web_app_username
+        ensure_delivery_schema(self.store)
 
     def login(self,user_id):
         user=self.store.user(user_id)
@@ -42,7 +48,7 @@ class Application:
             now=time.time()
             self.sessions={k:v for k,v in self.sessions.items() if v['expires']>now}
             require(len(self.sessions)<1000,'busy','Слишком много сеансов. Повторите позже.',503)
-            self.sessions[token]={'user_id':user_id,'csrf':csrf,'expires':now+3600}
+            self.sessions[token]={'user_id':user_id,'csrf':csrf,'expires':now+3600,'access_version':user.get('access_version',1)}
         return token,{'user':user,'csrf':csrf}
 
     def session(self,cookie):
@@ -54,6 +60,8 @@ class Application:
         with self.lock:
             session=self.sessions.get(token)
         require(session is not None and session['expires']>time.time(),'unauthorized','Войдите заново: сеанс истёк.',401)
+        actor=self.store.user(session['user_id'])
+        require(actor.get('access_version',1)==session.get('access_version',1),'unauthorized','Права изменились. Откройте приложение из MAX заново.',401)
         return session
 
 
@@ -72,7 +80,7 @@ def handler_for(app):
             self.send_header('Cache-Control','no-store')
             self.send_header('X-Content-Type-Options','nosniff')
             self.send_header('Referrer-Policy','no-referrer')
-            self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' https://web.max.ru https://max.ru")
+            self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self' https://st.max.ru/js/max-web-app.js; style-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self' https://web.max.ru https://max.ru")
             if cookie:
                 secure='; Secure' if app.origin.startswith('https:') else ''
                 same_site='None' if not app.demo else 'Lax'
@@ -102,7 +110,7 @@ def handler_for(app):
             path=urlsplit(self.path).path
             if self.command=='GET':
                 if path=='/health':
-                    return self.respond(200,{'ok':True,'demo':app.demo,'version':'0.1.0'})
+                    return self.respond(200,{'ok':True,'demo':app.demo,'version':'0.2.0-local'})
                 if path=='/api/config':
                     return self.respond(200,{'demo':app.demo})
                 if path.startswith('/api/'):
@@ -110,6 +118,10 @@ def handler_for(app):
                     if path=='/api/bootstrap':
                         data=app.store.bootstrap(uid,app.demo); data['csrf']=session['csrf']
                         return self.respond(200,data)
+                    if path=='/api/admin':
+                        return self.respond(200,{**app.store.school_admin(uid),**list_invitations(app.store,uid)})
+                    if path=='/api/delivery':
+                        return self.respond(200,delivery_summary(app.store,uid))
                     match=re.fullmatch('/api/initiatives/([a-zA-Z0-9-]+)',path)
                     if match:
                         return self.respond(200,app.store.detail(match[1],uid))
@@ -119,7 +131,10 @@ def handler_for(app):
                 file=ROOT/'web'/files[path]
                 require(file.is_file(),'not_found','Интерфейс ещё не собран.',404)
                 content_type={'html':'text/html; charset=utf-8','js':'text/javascript; charset=utf-8','css':'text/css; charset=utf-8'}[file.suffix[1:]]
-                return self.respond(200,file.read_bytes(),content_type)
+                body=file.read_bytes()
+                if file.name=='index.html' and not app.demo:
+                    body=body.replace(b'<script src="/app.js" defer></script>',b'<script src="https://st.max.ru/js/max-web-app.js" defer></script><script src="/app.js" defer></script>')
+                return self.respond(200,body,content_type)
             require(self.command in ('POST','PATCH'),'method_not_allowed','Метод не поддерживается.',405)
             if path=='/api/max/webhook':
                 require(not app.demo and self.command=='POST','not_found','Webhook отключён в демо.',404)
@@ -127,7 +142,7 @@ def handler_for(app):
             origin=self.headers.get('Origin')
             require(origin in (None,app.origin),'invalid_origin','Запрос с другого сайта запрещён.',403)
             require(self.headers.get('Sec-Fetch-Site') not in ('cross-site','same-site'),'invalid_origin','Запрос с другого сайта запрещён.',403)
-            if path in ('/api/demo/login','/api/max/login'):
+            if path in ('/api/demo/login','/api/max/login','/api/max/enroll'):
                 require(self.command=='POST','method_not_allowed','Для входа используйте POST.',405)
                 now=time.time(); ip=self.client_address[0]
                 with app.lock:
@@ -136,12 +151,15 @@ def handler_for(app):
                     app.login_hits[ip]=hits+[now]
                 raw=self.body()
                 if path=='/api/demo/login':
+                    require(set(raw)<={'user_id'},'invalid_field','В запросе есть неизвестные поля.')
                     require(app.demo,'not_found','Демонстрационный вход выключен.',404)
-                    require(raw.get('user_id') in ('student-author','student-helper','student-visitor','curator'),'invalid_user','Выберите демо-персону.')
+                    require(raw.get('user_id') in ('student-author','student-helper','student-visitor','curator','admin'),'invalid_user','Выберите демо-персону.')
                     uid=raw['user_id']
                 else:
                     require(not app.demo,'not_found','В демо вход MAX отключён.',404)
-                    uid=app.store.max_user(validate_init_data(raw.get('init_data'),app.token))['id']
+                    require(set(raw)<=({'init_data','invitation_code'} if path=='/api/max/enroll' else {'init_data'}),'invalid_field','В запросе есть неизвестные поля.')
+                    max_id=validate_init_data(raw.get('init_data'),app.token)
+                    uid=(redeem_invitation(app.store,max_id,raw.get('invitation_code')) if path=='/api/max/enroll' else app.store.max_user(max_id))['id']
                 token,response=app.login(uid)
                 return self.respond(200,response,cookie=token)
             session=app.session(self.headers.get('Cookie')); uid=session['user_id']
@@ -151,6 +169,17 @@ def handler_for(app):
                 with app.lock:
                     app.sessions={k:v for k,v in app.sessions.items() if v is not session}
                 return self.respond(200,{'ok':True},cookie='')
+            if path=='/api/interests' and self.command=='POST':
+                require(set(raw)<={'interest_id','enabled'},'invalid_field','В запросе есть неизвестные поля.')
+                return self.respond(200,app.store.set_interest_subscription(uid,raw.get('interest_id'),raw.get('enabled')))
+            if path=='/api/admin' and self.command=='POST':
+                return self.respond(200,{**app.store.admin(uid,raw),**list_invitations(app.store,uid)})
+            if path=='/api/admin/invitations' and self.command=='POST':
+                return self.respond(201,create_invitation(app.store,uid,raw))
+            if path=='/api/admin/invitations/revoke' and self.command=='POST':
+                return self.respond(200,revoke_invitation(app.store,uid,raw.get('id')))
+            if path=='/api/delivery/resolve' and self.command=='POST':
+                return self.respond(200,resolve_delivery(app.store,uid,raw))
             if path=='/api/initiatives' and self.command=='POST':
                 return self.respond(201,app.store.create(uid,raw,self.headers.get('Idempotency-Key','')))
             match=re.fullmatch('/api/initiatives/([a-zA-Z0-9-]+)(?:/(actions|tasks)(?:/([a-zA-Z0-9-]+))?)?',path)
@@ -184,9 +213,12 @@ def main():
     parser.add_argument('--db',default=os.getenv('VNEUROK_DB',str(ROOT/'data'/'vneurok.db')))
     parser.add_argument('--max-mode',action='store_true',help='Отключает демо, требует HTTPS и настройки MAX')
     parser.add_argument('--send-enabled',action='store_true',help='Разрешает реальные ответы и уведомления в MAX')
+    parser.add_argument('--web-app-username',default='',help='Включить кнопку mini-app только после настройки приложения указанного бота')
     parser.add_argument('--env-file',help='Локальный файл настроек без выполнения команд оболочки')
     args=parser.parse_args()
     if args.env_file:
+        if not all(c['ok'] for c in inspect_config(args.env_file)):
+            parser.error('Файл настроек не прошёл безопасную проверку. Используйте приватный обычный файл с корректными ключами и HTTPS.')
         allowed={'APP_ORIGIN','MAX_BOT_TOKEN','MAX_WEBHOOK_SECRET'}
         for line in Path(args.env_file).read_text().splitlines():
             if not line.strip() or line.lstrip().startswith('#'):
@@ -199,7 +231,7 @@ def main():
         parser.error('Демо можно запускать только на loopback, без публикации в сети.')
     Path(args.db).parent.mkdir(parents=True,exist_ok=True)
     origin=os.getenv('APP_ORIGIN',f'http://{args.host}:{args.port}')
-    app=Application(args.db,not args.max_mode,origin,os.getenv('MAX_BOT_TOKEN',''),os.getenv('MAX_WEBHOOK_SECRET',''))
+    app=Application(args.db,not args.max_mode,origin,os.getenv('MAX_BOT_TOKEN',''),os.getenv('MAX_WEBHOOK_SECRET',''),args.web_app_username)
     server=ThreadingHTTPServer((args.host,args.port),handler_for(app))
     stop=threading.Event()
     if args.send_enabled:
