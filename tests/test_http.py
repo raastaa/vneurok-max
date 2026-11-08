@@ -60,4 +60,12 @@ class HttpTests(unittest.TestCase):
         self.assertTrue(self.call('/health')[1]['ok'])
         for path in ['/','/app.js','/style.css']: self.assertEqual(self.call(path)[0],200)
 
+    def test_private_team_hidden_in_http_detail_and_bootstrap(self):
+        with self.app.store.connection(True) as db:
+            db.execute("UPDATE initiatives SET kind='team',status='submitted' WHERE id='demo-game-workshop'")
+        status,data,headers=self.call('/api/demo/login','POST',{'user_id':'student-visitor'})
+        self.assertEqual(status,200);self.cookie=headers['Set-Cookie'].split(';')[0]
+        self.assertEqual(self.call('/api/bootstrap')[1]['initiatives'],[])
+        self.assertEqual(self.call('/api/initiatives/demo-game-workshop')[0],403)
+
 if __name__=='__main__': unittest.main()

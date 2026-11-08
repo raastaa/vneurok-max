@@ -46,7 +46,9 @@ class CoreTests(unittest.TestCase):
         with self.store.connection(True) as db:
             db.execute('UPDATE initiatives SET starts_at=?,ends_at=? WHERE id=?',((datetime.now(timezone.utc)-timedelta(hours=2)).isoformat(),(datetime.now(timezone.utc)-timedelta(hours=1)).isoformat(),row['id']))
         row=self.action(self.curator,row,'attendance',user_id=self.visitor,attended=True)
-        row=self.action(self.author,row,'complete',result='Собрали игровой уровень и показали всем участникам.')
+        row=self.action(self.author,row,'submit_result',result='Собрали игровой уровень и показали всем участникам.')
+        self.assertEqual(row['status'],'awaiting_confirmation')
+        row=self.action(self.curator,row,'complete')
         self.assertEqual(row['status'],'completed')
         self.assertEqual(row['registrations'][0]['attended'],1)
         self.assertEqual(Store(self.store.path).detail(row['id'],self.author)['result'],row['result'])
@@ -114,7 +116,8 @@ class CoreTests(unittest.TestCase):
         self.assertEqual(self.action(self.curator,other,'approve')['status'],'approved')
 
     def test_no_enrollment_before_approval(self):
-        row=self.action(self.author,self.create(),'submit')
+        row=self.create(); row=self.action(self.author,row,'invite',user_id=self.helper)
+        row=self.action(self.author,row,'submit')
         self.assertError('invalid_state',lambda:self.action(self.helper,row,'register'))
 
     def test_scheduling_conflict_for_pupil(self):
@@ -131,7 +134,9 @@ class CoreTests(unittest.TestCase):
 
     def test_helper_task_claim_before_approval(self):
         row=self.create(); row=self.store.task(self.author,row['id'],{'title':'Подготовить материалы','version':row['version']})
-        row=self.action(self.author,row,'submit'); tid=row['tasks'][0]['id']
+        row=self.action(self.author,row,'invite',user_id=self.helper)
+        row=self.action(self.author,row,'invite',user_id=self.visitor)
+        tid=row['tasks'][0]['id']
         row=self.store.task(self.helper,row['id'],{'action':'claim','version':row['version']},tid)
         self.assertEqual(row['tasks'][0]['assignee_id'],self.helper)
         self.assertError('task_taken',lambda:self.store.task(self.visitor,row['id'],{'action':'claim','version':row['version']},tid))
@@ -159,7 +164,7 @@ class CoreTests(unittest.TestCase):
         row=self.opened(); row=self.action(self.helper,row,'register')
         self.assertError('forbidden',lambda:self.action(self.author,row,'attendance',user_id=self.helper,attended=True))
         self.assertError('invalid_state',lambda:self.action(self.curator,row,'attendance',user_id=self.helper,attended=True))
-        self.assertError('invalid_state',lambda:self.action(self.author,row,'complete',result='Попытка выдать будущее событие за завершённое.'))
+        self.assertError('invalid_state',lambda:self.action(self.author,row,'submit_result',result='Попытка выдать будущее событие за завершённое.'))
 
     def test_cannot_remove_confirmed_attendance(self):
         row=self.opened(); row=self.action(self.helper,row,'register')

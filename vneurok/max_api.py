@@ -72,7 +72,7 @@ class NoRedirect(HTTPRedirectHandler):
 def flush_outbox(store,token=None,send=False,transport=None):
     """Проверяем очередь. Если доставка неясна, сообщение не отправляется повторно."""
     with store.connection() as db:
-        pending=db.execute("SELECT o.id,o.payload,u.max_id FROM outbox o JOIN users u ON u.id=o.user_id WHERE o.state='pending' ORDER BY o.id").fetchall()
+        pending=db.execute("SELECT o.id,o.payload,o.user_id,o.initiative_id,u.max_id FROM outbox o JOIN users u ON u.id=o.user_id WHERE o.state='pending' ORDER BY o.id").fetchall()
     if not send:
         return {'pending':len(pending),'deliverable':sum(bool(r['max_id']) for r in pending),'sent':0,'mode':'dry-run'}
     require(bool(token),'unconfigured','Не настроен токен MAX.')
@@ -84,6 +84,13 @@ def flush_outbox(store,token=None,send=False,transport=None):
         if not row['max_id']:
             continue
         with store.connection(True) as db:
+            payload=json.loads(row['payload'])
+            if row['initiative_id']:
+                card=store._row(db,row['initiative_id'])
+                safe_notice=payload.get('restricted_notice') is True and card['kind']=='event' and bool(db.execute('SELECT 1 FROM initiative_followers WHERE initiative_id=? AND user_id=?',(card['id'],row['user_id'])).fetchone())
+                if not store._can_view(db,card,store.user(row['user_id'],db)) and not safe_notice:
+                    db.execute("UPDATE outbox SET state='cancelled',last_error='Доступ к карточке закрыт' WHERE id=? AND state='pending'",(row['id'],))
+                    continue
             claimed=db.execute("UPDATE outbox SET state='sending',attempts=attempts+1 WHERE id=? AND state='pending'",(row['id'],)).rowcount
         if not claimed:
             continue

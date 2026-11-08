@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS initiatives (
  id TEXT PRIMARY KEY, owner_id TEXT NOT NULL REFERENCES users(id), title TEXT NOT NULL, description TEXT NOT NULL,
  kind TEXT NOT NULL CHECK(kind IN ('event','team')), status TEXT NOT NULL DEFAULT 'draft', version INTEGER NOT NULL DEFAULT 1,
  space_id TEXT NOT NULL REFERENCES spaces(id), starts_at TEXT NOT NULL, ends_at TEXT NOT NULL, capacity INTEGER NOT NULL,
+ published INTEGER NOT NULL DEFAULT 0 CHECK(published IN (0,1)),
+ confirmed_by TEXT REFERENCES users(id), confirmed_at TEXT,
  approved_by TEXT REFERENCES users(id), review_note TEXT NOT NULL DEFAULT '', result TEXT NOT NULL DEFAULT '',
  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS tasks (
@@ -59,7 +61,14 @@ CREATE TABLE IF NOT EXISTS tasks (
  assignee_id TEXT REFERENCES users(id), done INTEGER NOT NULL DEFAULT 0 CHECK(done IN (0,1)));
 CREATE TABLE IF NOT EXISTS registrations (
  initiative_id TEXT NOT NULL REFERENCES initiatives(id), user_id TEXT NOT NULL REFERENCES users(id),
- attended INTEGER NOT NULL DEFAULT 0 CHECK(attended IN (0,1)), created_at TEXT NOT NULL,
+ attended INTEGER NOT NULL DEFAULT 0 CHECK(attended IN (0,1)),
+ attendance_recorded INTEGER NOT NULL DEFAULT 0 CHECK(attendance_recorded IN (0,1)), created_at TEXT NOT NULL,
+ PRIMARY KEY(initiative_id,user_id));
+CREATE TABLE IF NOT EXISTS initiative_members (
+ initiative_id TEXT NOT NULL REFERENCES initiatives(id), user_id TEXT NOT NULL REFERENCES users(id),
+ PRIMARY KEY(initiative_id,user_id));
+CREATE TABLE IF NOT EXISTS initiative_followers (
+ initiative_id TEXT NOT NULL REFERENCES initiatives(id), user_id TEXT NOT NULL REFERENCES users(id),
  PRIMARY KEY(initiative_id,user_id));
 CREATE TABLE IF NOT EXISTS history (
  id INTEGER PRIMARY KEY, initiative_id TEXT NOT NULL REFERENCES initiatives(id), actor_id TEXT NOT NULL REFERENCES users(id),
@@ -89,6 +98,21 @@ class Store:
         with self.connection() as db:
             db.executescript(SCHEMA)
             db.execute('PRAGMA journal_mode=WAL')
+        # Additive migration: old unchecked false values do not mean confirmed absence.
+        with self.connection(True) as db:
+            columns={r['name'] for r in db.execute('PRAGMA table_info(registrations)')}
+            if 'attendance_recorded' not in columns:
+                db.execute('ALTER TABLE registrations ADD COLUMN attendance_recorded INTEGER NOT NULL DEFAULT 0')
+                db.execute('UPDATE registrations SET attendance_recorded=1 WHERE attended=1')
+            columns={r['name'] for r in db.execute('PRAGMA table_info(initiatives)')}
+            if 'published' not in columns:
+                db.execute('ALTER TABLE initiatives ADD COLUMN published INTEGER NOT NULL DEFAULT 0')
+                db.execute("UPDATE initiatives SET published=1 WHERE approved_by IS NOT NULL OR status IN ('approved','registration','awaiting_confirmation','completed') OR id IN (SELECT initiative_id FROM history WHERE action='approve')")
+            if 'confirmed_by' not in columns:
+                db.execute('ALTER TABLE initiatives ADD COLUMN confirmed_by TEXT REFERENCES users(id)')
+                db.execute('ALTER TABLE initiatives ADD COLUMN confirmed_at TEXT')
+                db.execute("UPDATE history SET action='task_complete' WHERE action='complete' AND note=''")
+            db.execute("INSERT OR IGNORE INTO initiative_followers SELECT r.initiative_id,r.user_id FROM registrations r JOIN initiatives i ON i.id=r.initiative_id WHERE i.kind='event'")
 
     @contextmanager
     def connection(self, write=False):
@@ -145,11 +169,20 @@ class Store:
         return dict(row)
 
     def _can_view(self, db, row, actor):
-        if row['owner_id']==actor['id'] or actor['role']=='curator':
+        uid=actor['id']
+        if row['owner_id']==uid or actor['role']=='curator':
             return True
-        if row['status'] not in ('draft','needs_changes'):
+        if db.execute('SELECT 1 FROM initiative_members WHERE initiative_id=? AND user_id=?',(row['id'],uid)).fetchone():
             return True
-        return bool(db.execute('SELECT 1 FROM tasks WHERE initiative_id=? AND assignee_id=?',(row['id'],actor['id'])).fetchone())
+        if db.execute('SELECT 1 FROM tasks WHERE initiative_id=? AND assignee_id=?',(row['id'],uid)).fetchone():
+            return True
+        # Private teams never become public merely by changing workflow state.
+        if row['kind']=='team':
+            return False
+        return bool(row['published'] and row['approved_by'] and row['status'] in ('approved','registration','awaiting_confirmation','completed','cancelled'))
+
+    def _team_ids(self,db,row):
+        return {row['owner_id']} | {r[0] for r in db.execute('SELECT user_id FROM initiative_members WHERE initiative_id=?',(row['id'],))} | {r[0] for r in db.execute('SELECT assignee_id FROM tasks WHERE initiative_id=? AND assignee_id IS NOT NULL',(row['id'],))}
 
     def _detail(self, db, initiative_id, actor):
         row = self._row(db,initiative_id)
@@ -157,9 +190,14 @@ class Store:
         row['owner_name'] = self.user(row['owner_id'],db)['name']
         row['space_name'] = db.execute('SELECT name FROM spaces WHERE id=?',(row['space_id'],)).fetchone()['name']
         row['tasks'] = [dict(t) for t in db.execute('SELECT t.*,u.name AS assignee_name FROM tasks t LEFT JOIN users u ON u.id=t.assignee_id WHERE initiative_id=? ORDER BY t.rowid',(initiative_id,))]
-        registrations = [dict(t) for t in db.execute('SELECT r.user_id,u.name,r.attended FROM registrations r JOIN users u ON u.id=r.user_id WHERE initiative_id=? ORDER BY r.created_at',(initiative_id,))]
+        registrations = [dict(t) for t in db.execute('SELECT r.user_id,u.name,r.attended,r.attendance_recorded FROM registrations r JOIN users u ON u.id=r.user_id WHERE initiative_id=? ORDER BY r.created_at',(initiative_id,))]
         row['registration_count'] = len(registrations)
+        row['team_count'] = len(self._team_ids(db,row))
         row['my_registration'] = any(r['user_id']==actor['id'] for r in registrations)
+        row['my_following'] = bool(db.execute('SELECT 1 FROM initiative_followers WHERE initiative_id=? AND user_id=?',(initiative_id,actor['id'])).fetchone())
+        row['my_membership'] = bool(db.execute('SELECT 1 FROM initiative_members WHERE initiative_id=? AND user_id=?',(initiative_id,actor['id'])).fetchone())
+        row['attendance_pending'] = sum(not r['attendance_recorded'] for r in registrations) if actor['role']=='curator' or row['owner_id']==actor['id'] else None
+        row['members'] = [dict(m) for m in db.execute('SELECT m.user_id,u.name FROM initiative_members m JOIN users u ON u.id=m.user_id WHERE initiative_id=?',(initiative_id,))] if actor['role']=='curator' or row['owner_id']==actor['id'] else []
         # Другим ученикам не показываем чужие записи и посещаемость.
         row['registrations'] = registrations if actor['role']=='curator' or row['owner_id']==actor['id'] else [r for r in registrations if r['user_id']==actor['id']]
         row['history'] = [dict(h) for h in db.execute('SELECT action,note,created_at FROM history WHERE initiative_id=? ORDER BY id DESC',(initiative_id,))]
@@ -207,13 +245,30 @@ class Store:
         db.execute('UPDATE initiatives SET version=version+1,updated_at=? WHERE id=?',(now_iso(),row['id']))
 
     def _notify(self,db,row,event,recipients):
-        # Сначала сохраняем решение, а сообщение отправим отдельно.
+        # Saved in the same transaction as the decision; transport runs separately.
+        room=db.execute('SELECT name FROM spaces WHERE id=?',(row['space_id'],)).fetchone()['name']
+        local=timezone(timedelta(hours=9))
+        start=utc_time(row['starts_at']).astimezone(local).strftime('%d.%m.%Y %H:%M')
+        end=utc_time(row['ends_at']).astimezone(local).strftime('%H:%M')
+        text=f'«{row["title"]}»: {event}.\n{room}, {start}–{end} (Чита, UTC+9).\nШкола: /school, затем /view {row["id"]}'
         for uid in set(recipients):
-            payload=json.dumps({'text':f'«{row["title"]}»: {event}. Откройте карточку во «Внеуроке».','initiative_id':row['id']},ensure_ascii=False)
+            can_view=self._can_view(db,row,self.user(uid,db))
+            notice=not can_view and row['kind']=='event' and row['published'] and bool(db.execute('SELECT 1 FROM initiative_followers WHERE initiative_id=? AND user_id=?',(row['id'],uid)).fetchone())
+            if not can_view and not notice:
+                continue
+            safe_event=('Ранее выбранная инициатива отменена. Участия не будет.' if row['status']=='cancelled' else 'У ранее выбранной инициативы изменились условия. Прежняя запись отменена. Карточка на повторной проверке; сообщим, когда запись откроется.')
+            safe_text=(safe_event+'\n'
+                       f'ID: {row["id"]}\nШкола: /school. Отключить подписку: /unfollow {row["id"]}') if notice else text
+            payload=json.dumps({'text':safe_text,'initiative_id':row['id'],'restricted_notice':bool(notice)},ensure_ascii=False)
             db.execute('INSERT INTO outbox(user_id,initiative_id,event,payload,created_at) VALUES(?,?,?,?,?)',(uid,row['id'],event,payload,now_iso()))
 
     def _audience(self,db,row):
-        return {row['owner_id']} | {r[0] for r in db.execute('SELECT user_id FROM registrations WHERE initiative_id=?',(row['id'],))} | {r[0] for r in db.execute('SELECT assignee_id FROM tasks WHERE initiative_id=? AND assignee_id IS NOT NULL',(row['id'],))}
+        ids={row['owner_id']} | {r[0] for r in db.execute('SELECT user_id FROM registrations WHERE initiative_id=?',(row['id'],))}
+        for table,column in (('tasks','assignee_id'),('initiative_members','user_id'),('initiative_followers','user_id')):
+            ids.update(r[0] for r in db.execute(f'SELECT {column} FROM {table} WHERE initiative_id=? AND {column} IS NOT NULL',(row['id'],)))
+        if row['approved_by']:
+            ids.add(row['approved_by'])
+        return ids
 
     def create(self,user_id,raw,key):
         key=text_field(key,'Ключ повторного запроса',8,128)
@@ -237,10 +292,12 @@ class Store:
             actor=self.user(user_id,db); row=self._row(db,iid)
             require(row['owner_id']==user_id,'forbidden','Изменять инициативу может только её автор.',403)
             self._version(row,raw.get('version'))
-            require(row['status'] not in ('completed','cancelled'),'invalid_state','Завершённую или отменённую инициативу менять нельзя.',409)
+            require(row['status'] not in ('completed','cancelled','awaiting_confirmation'),'invalid_state','Завершённую или отменённую инициативу менять нельзя.',409)
+            require(utc_time(row['starts_at'])>datetime.now(UTC),'already_started','После начала условия менять нельзя: нужно сохранить записи и посещаемость.',409)
             data={k:row[k] for k in ('title','description','kind','space_id','starts_at','ends_at','capacity')}
             data.update({k:v for k,v in raw.items() if k!='version'})
             values=self._conditions(db,data)
+            require(values['kind']==row['kind'],'immutable_kind','Формат после создания не меняется. Создайте отдельную инициативу.')
             changed=any(row[k]!=v for k,v in values.items())
             if not changed:
                 return self._detail(db,iid,actor)
@@ -250,10 +307,23 @@ class Store:
             db.execute(f'UPDATE initiatives SET {",".join(k+"=?" for k in values)},status=?,approved_by=NULL WHERE id=?', [*values.values(),new_status,iid])
             db.execute('DELETE FROM registrations WHERE initiative_id=?',(iid,))
             self._history(db,row,actor,'edited','Условия изменены. Нужны новое согласование и повторная запись.')
-            self._notify(db,row,'условия изменены, прежняя запись отменена',recipients)
+            self._notify(db,self._row(db,iid),'условия изменены; прежняя запись отменена. Дождитесь согласования и запишитесь заново',recipients)
             return self._detail(db,iid,actor)
 
+    def unsubscribe(self,user_id,iid):
+        # An opt-out must work even while a revised card is private.
+        with self.connection(True) as db:
+            actor=self.user(user_id,db); row=self._row(db,iid)
+            require(not db.execute('SELECT 1 FROM registrations WHERE initiative_id=? AND user_id=?',(iid,user_id)).fetchone(),'still_registered','Сначала отмените запись, чтобы не пропустить важные изменения.')
+            removed=db.execute('DELETE FROM initiative_followers WHERE initiative_id=? AND user_id=?',(iid,user_id)).rowcount
+            if removed:
+                db.execute("UPDATE outbox SET state='cancelled',last_error='Пользователь отписался' WHERE initiative_id=? AND user_id=? AND state='pending'",(iid,user_id))
+                self._history(db,row,actor,'unfollow')
+            return {'id':iid,'removed_from_card':True}
+
     def action(self,user_id,iid,raw):
+        if raw.get('action')=='unfollow':
+            return self.unsubscribe(user_id,iid)
         with self.connection(True) as db:
             actor=self.user(user_id,db); row=self._row(db,iid)
             require(self._can_view(db,row,actor),'forbidden','Нет доступа к карточке.',403)
@@ -273,6 +343,29 @@ class Store:
                 self._conditions(db,{k:row[k] for k in ('title','description','kind','space_id','starts_at','ends_at','capacity')})
                 new_status='submitted'
                 self._notify(db,row,'нужно согласование',[u[0] for u in db.execute("SELECT id FROM users WHERE role='curator'")])
+            elif action in ('invite','remove_member'):
+                require(owner,'forbidden','Команду приглашает и изменяет автор.',403)
+                require(status not in ('completed','cancelled','awaiting_confirmation'),'invalid_state','Команда уже закрыта.',409)
+                target=self.user(raw.get('user_id'),db)
+                require(target['role']=='student' and target['id']!=user_id,'invalid_member','Пригласите другого ученика своей школы.')
+                if action=='invite':
+                    require(utc_time(row['starts_at'])>datetime.now(UTC),'already_started','После начала встречи состав команды не меняется.',409)
+                    require(row['kind']!='team' or len(self._team_ids(db,row)|{target['id']})<=row['capacity'],'team_full','Вместимость закрытой встречи исчерпана; автор тоже занимает место.',409)
+                    changed=db.execute('INSERT OR IGNORE INTO initiative_members VALUES(?,?)',(iid,target['id'])).rowcount
+                    if not changed:
+                        return self._detail(db,iid,actor)
+                    self._notify(db,row,'вас пригласили в команду; можно взять задачу',[target['id']])
+                else:
+                    require(not db.execute('SELECT 1 FROM tasks WHERE initiative_id=? AND assignee_id=?',(iid,target['id'])).fetchone(),'member_has_tasks','Сначала освободите задачи участника.')
+                    db.execute('DELETE FROM initiative_members WHERE initiative_id=? AND user_id=?',(iid,target['id']))
+                    if not self._can_view(db,row,target):
+                        db.execute("UPDATE outbox SET state='cancelled',last_error='Доступ к карточке закрыт' WHERE initiative_id=? AND user_id=? AND state='pending'",(iid,target['id']))
+            elif action=='follow':
+                require(actor['role']=='student' and row['kind']=='event','forbidden','Подписка доступна ученикам для событий.',403)
+                require(status in ('approved','registration'),'invalid_state','Можно подписаться на согласованное событие.',409)
+                if db.execute('SELECT 1 FROM initiative_followers WHERE initiative_id=? AND user_id=?',(iid,user_id)).fetchone():
+                    return self._detail(db,iid,actor)
+                db.execute('INSERT INTO initiative_followers VALUES(?,?)',(iid,user_id))
             elif action in ('approve','request_changes'):
                 require(curator and not owner,'forbidden','Согласовать может другой пользователь с ролью куратора.',403)
                 require(status=='submitted','invalid_state','На проверке нет актуальной заявки.',409)
@@ -281,15 +374,17 @@ class Store:
                     db.execute('UPDATE initiatives SET review_note=?,approved_by=NULL WHERE id=?',(note,iid))
                 else:
                     self._conditions(db,{k:row[k] for k in ('title','description','kind','space_id','starts_at','ends_at','capacity')})
-                    conflict=db.execute("SELECT id FROM initiatives WHERE id<>? AND space_id=? AND status IN ('approved','registration','completed') AND starts_at<? AND ends_at>?",(iid,row['space_id'],row['ends_at'],row['starts_at'])).fetchone()
+                    require(row['kind']!='team' or len(self._team_ids(db,row))<=row['capacity'],'team_full','В команде больше людей, чем разрешено условиями встречи.',409)
+                    conflict=db.execute("SELECT id FROM initiatives WHERE id<>? AND space_id=? AND status IN ('approved','registration','awaiting_confirmation','completed') AND starts_at<? AND ends_at>?",(iid,row['space_id'],row['ends_at'],row['starts_at'])).fetchone()
                     require(conflict is None,'booking_conflict','Это помещение на выбранное время уже согласовано другой команде.',409)
-                    db.execute("UPDATE initiatives SET approved_by=?,review_note='' WHERE id=?",(user_id,iid)); new_status='approved'
-                self._notify(db,row,'согласовано' if action=='approve' else 'нужна доработка',self._audience(db,row))
+                    db.execute("UPDATE initiatives SET approved_by=?,review_note='',published=1 WHERE id=?",(user_id,iid)); new_status='approved'
+                self._notify(db,{**self._row(db,iid),'status':new_status},'согласовано' if action=='approve' else 'нужна доработка: '+note,self._audience(db,row))
             elif action=='open_registration':
                 require(owner,'forbidden','Запись открывает автор.',403)
                 require(status=='approved' and row['kind']=='event','invalid_state','Запись открывается только для согласованного события.',409)
                 require(utc_time(row['starts_at'])>datetime.now(UTC),'past_time','Событие уже началось.',409)
                 new_status='registration'
+                self._notify(db,row,'запись открыта; подтвердите участие командой /join '+iid,self._audience(db,row))
             elif action=='register':
                 require(actor['role']=='student','forbidden','Этот сценарий записи предназначен для учеников.',403)
                 require(status=='registration' and row['kind']=='event','invalid_state','Запись ещё не открыта или уже закрыта.',409)
@@ -299,34 +394,47 @@ class Store:
                 conflict=db.execute("SELECT 1 FROM registrations r JOIN initiatives i ON i.id=r.initiative_id WHERE r.user_id=? AND i.id<>? AND i.status='registration' AND i.starts_at<? AND i.ends_at>?",(user_id,iid,row['ends_at'],row['starts_at'])).fetchone()
                 require(conflict is None,'schedule_conflict','У вас уже есть запись на пересекающееся событие.',409)
                 db.execute('INSERT INTO registrations(initiative_id,user_id,created_at) VALUES(?,?,?)',(iid,user_id,now_iso()))
-                self._notify(db,row,'запись подтверждена',[user_id])
+                db.execute('INSERT OR IGNORE INTO initiative_followers VALUES(?,?)',(iid,user_id))
+                self._notify(db,row,'запись подтверждена; вы получите важные изменения',[user_id,row['owner_id']])
             elif action=='unregister':
                 require(status not in ('completed','cancelled'),'invalid_state','Событие уже закрыто.',409)
                 require(utc_time(row['starts_at'])>datetime.now(UTC),'already_started','После начала события запись меняет только педагог, чтобы сохранить посещаемость.',409)
                 db.execute('DELETE FROM registrations WHERE initiative_id=? AND user_id=?',(iid,user_id))
-                self._notify(db,row,'ваша запись отменена',[user_id])
+                db.execute('DELETE FROM initiative_followers WHERE initiative_id=? AND user_id=?',(iid,user_id))
+                self._notify(db,row,'запись участника отменена',[user_id,row['owner_id']])
             elif action=='cancel':
                 require(owner or curator,'forbidden','Отменить может автор или куратор.',403)
                 require(status not in ('completed','cancelled'),'invalid_state','Карточка уже закрыта.',409)
                 new_status='cancelled'
-                self._notify(db,row,'отменено',self._audience(db,row))
+                self._notify(db,{**row,'status':'cancelled'},'отменено',self._audience(db,row))
             elif action=='attendance':
                 require(curator,'forbidden','Присутствие подтверждает педагог.',403)
-                require(status in ('approved','registration') and utc_time(row['starts_at'])<=datetime.now(UTC),'invalid_state','Присутствие отмечают после начала согласованного события.',409)
+                require(status in ('approved','registration','awaiting_confirmation') and utc_time(row['starts_at'])<=datetime.now(UTC),'invalid_state','Присутствие отмечают после начала согласованного события.',409)
                 require(type(raw.get('attended')) is bool,'invalid_field','Укажите присутствие: да или нет.')
-                changed=db.execute('UPDATE registrations SET attended=? WHERE initiative_id=? AND user_id=?',(int(raw['attended']),iid,raw.get('user_id'))).rowcount
+                changed=db.execute('UPDATE registrations SET attended=?,attendance_recorded=1 WHERE initiative_id=? AND user_id=?',(int(raw['attended']),iid,raw.get('user_id'))).rowcount
                 require(changed==1,'not_registered','Ученик не записан на это событие.',404)
-            elif action=='complete':
-                require(owner or curator,'forbidden','Итог подводит автор или куратор.',403)
-                require(status in ('approved','registration') and utc_time(row['ends_at'])<=datetime.now(UTC),'invalid_state','Завершить можно согласованное событие после его окончания.',409)
+            elif action=='submit_result':
+                require(owner,'forbidden','Итог описывает автор инициативы.',403)
+                require(status in ('approved','registration','awaiting_confirmation') and utc_time(row['ends_at'])<=datetime.now(UTC),'invalid_state','Итог сохраняют после окончания согласованного события.',409)
                 note=text_field(raw.get('result'),'Итог',10,2000)
-                db.execute('UPDATE initiatives SET result=? WHERE id=?',(note,iid)); new_status='completed'
-                self._notify(db,row,'добавлен итог',self._audience(db,row))
+                db.execute('UPDATE initiatives SET result=? WHERE id=?',(note,iid)); new_status='awaiting_confirmation'
+                recipients={u[0] for u in db.execute("SELECT id FROM users WHERE role='curator'")}
+                self._notify(db,row,'итог сохранён; педагог должен проверить посещаемость и подтвердить проведение',recipients | {row['owner_id']})
+            elif action=='complete':
+                require(curator and not owner,'forbidden','Проведение подтверждает педагог, который не является автором.',403)
+                require(status=='awaiting_confirmation' and utc_time(row['ends_at'])<=datetime.now(UTC),'invalid_state','Сначала сохраните итог после окончания события.',409)
+                require(not db.execute('SELECT 1 FROM registrations WHERE initiative_id=? AND attendance_recorded=0',(iid,)).fetchone(),'attendance_required','Отметьте для каждого участника: пришёл или не пришёл.',409)
+                require(len(row['result'].strip())>=10,'result_required','Сначала сохраните итог.')
+                new_status='completed'
+                db.execute('UPDATE initiatives SET confirmed_by=?,confirmed_at=? WHERE id=?',(user_id,now_iso(),iid))
+                self._notify(db,row,'педагог подтвердил проведение; итог доступен',self._audience(db,row))
             else:
                 raise DomainError('unknown_action','Неизвестное действие.')
             if new_status:
                 db.execute('UPDATE initiatives SET status=? WHERE id=?',(new_status,iid))
             self._history(db,row,actor,action,note)
+            if not self._can_view(db,self._row(db,iid),actor):
+                return {'id':iid,'removed_from_card':True}
             return self._detail(db,iid,actor)
 
     def task(self,user_id,iid,raw,task_id=None):
@@ -342,6 +450,7 @@ class Store:
                 assignee=raw.get('assignee_id')
                 if assignee:
                     require(self.user(assignee,db)['role']=='student','invalid_assignee','Исполнитель задачи должен быть учеником.')
+                    require(row['kind']!='team' or len(self._team_ids(db,row)|{assignee})<=row['capacity'],'team_full','Вместимость закрытой встречи исчерпана.',409)
                 db.execute('INSERT INTO tasks(id,initiative_id,title,assignee_id) VALUES(?,?,?,?)',(uuid.uuid4().hex,iid,title,assignee))
                 event='task_created'
             else:
@@ -361,7 +470,17 @@ class Store:
                         db.execute('UPDATE tasks SET done=? WHERE id=?',(int(event=='complete'),task_id))
                 else:
                     raise DomainError('unknown_action','Неизвестное действие с задачей.')
-            self._history(db,row,actor,event)
+            self._history(db,row,actor,event if event=='task_created' else 'task_'+event)
+            names={'task_created':'добавлена задача','claim':'помощник взял задачу','release':'задача освобождена','complete':'задача выполнена','reopen':'задача снова открыта'}
+            recipients={row['owner_id']}
+            if row['approved_by']:
+                recipients.add(row['approved_by'])
+            if task_id is None and assignee:
+                recipients.add(assignee)
+            elif task_id is not None and task['assignee_id']:
+                recipients.add(task['assignee_id'])
+            task_title=title if task_id is None else task['title']
+            self._notify(db,row,names[event]+': '+task_title,recipients)
             if not self._can_view(db,self._row(db,iid),actor):
                 return {'id':iid,'removed_from_card':True}
             return self._detail(db,iid,actor)
